@@ -37,4 +37,7 @@ class OracleConfig:
 
 
 class AppConfig:
-    REFERENCE_ID_FIELD = os.getenv("REFERENCE_ID_FIELD", "ReferenceID")
+    # Dot-notation path to the reference ID in the parsed XML dict.
+    # Example: "Envelope.Header.ReferenceID" for:
+    #   <Envelope><Header><ReferenceID>ABC123</ReferenceID></Header></Envelope>
+    REFERENCE_ID_PATH = os.getenv("REFERENCE_ID_PATH", "Envelope.Header.ReferenceID")

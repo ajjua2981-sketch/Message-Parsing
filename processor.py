@@ -7,42 +7,36 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_reference_id(data: dict) -> str:
-    """Navigate the parsed XML dict to pull out the reference ID.
+    """Walk the fixed dot-notation path defined in REFERENCE_ID_PATH to extract the reference ID.
 
-    xmltodict wraps everything under the root element tag, e.g.:
-        {"Message": {"ReferenceID": "ABC123", ...}}
-    Adjust the key path once you know your XML schema.
+    Each segment in the path must be an exact key in the parsed XML dict.
+    Raises KeyError with a descriptive message if any segment is missing.
     """
-    field = AppConfig.REFERENCE_ID_FIELD
-    # Try the top-level first, then one level deep under the root element
-    if field in data:
-        return str(data[field])
-    for root_value in data.values():
-        if isinstance(root_value, dict) and field in root_value:
-            return str(root_value[field])
-    raise KeyError(f"Reference ID field '{field}' not found in message")
+    path = AppConfig.REFERENCE_ID_PATH
+    segments = path.split(".")
+    current = data
+
+    for segment in segments:
+        if not isinstance(current, dict) or segment not in current:
+            raise KeyError(
+                f"Could not resolve path '{path}' — segment '{segment}' not found. "
+                f"Available keys: {list(current.keys()) if isinstance(current, dict) else type(current).__name__}"
+            )
+        current = current[segment]
+
+    return str(current)
 
 
 def _flatten_for_db(data: dict, json_string: str) -> dict:
     """Map parsed message fields to Oracle column values.
 
-    TODO: expand this once you share the real XML structure and table schema.
-    For now, the entire JSON payload is stored in the PAYLOAD column.
+    TODO: expand with real column mappings once the table schema is shared.
+    The full JSON payload is stored in PAYLOAD for now.
     """
-    field = AppConfig.REFERENCE_ID_FIELD
-    ref_id = _extract_reference_id(data)
-
-    # Walk one level into the root element if needed
-    inner = data
-    for v in data.values():
-        if isinstance(v, dict):
-            inner = v
-            break
-
     return {
-        "REFERENCE_ID": ref_id,
+        "REFERENCE_ID": _extract_reference_id(data),
         "PAYLOAD": json_string,
-        "STATUS": inner.get("Status", "NEW"),
+        "STATUS": "NEW",
     }
 
 

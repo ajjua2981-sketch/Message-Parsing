@@ -2,6 +2,10 @@
 logs/
 run/
 
+# Certificates & secrets
+*.pem
+*.jks
+
 # Python
 __pycache__/
 *.py[cod]

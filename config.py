@@ -5,23 +5,27 @@ load_dotenv()
 
 
 class KafkaConfig:
-    # Comma-separated list of on-prem broker addresses
-    BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "broker1:9092,broker2:9092,broker3:9092")
+    BOOTSTRAP_SERVERS = os.getenv(
+        "KAFKA_BOOTSTRAP_SERVERS",
+        "ch3dr1017045.express-scripts.com:9092,"
+        "ch3dr1017046.express-scripts.com:9092,"
+        "ch3dr1017047.express-scripts.com:9092,"
+        "ch3dr1017048.express-scripts.com:9092,"
+        "ch3dr1017049.express-scripts.com:9092,"
+        "ch3dr1017050.express-scripts.com:9092",
+    )
     TOPIC = os.getenv("KAFKA_TOPIC", "your-topic-name")
     GROUP_ID = os.getenv("KAFKA_GROUP_ID", "message-parsing-group")
     AUTO_OFFSET_RESET = os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest")
 
-    # On-prem auth: PLAINTEXT | SASL_PLAINTEXT | SASL_SSL
-    SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
-
-    # Kerberos (GSSAPI) — set if the cluster uses Kerberos auth
-    SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", "")
-    SASL_KERBEROS_SERVICE_NAME = os.getenv("KAFKA_SASL_KERBEROS_SERVICE_NAME", "kafka")
+    # SASL_SSL: Kerberos auth over SSL (on-prem cluster requirement)
+    SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_SSL")
+    SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", "GSSAPI")
+    SASL_KERBEROS_SERVICE_NAME = os.getenv("KAFKA_SASL_KERBEROS_SERVICE_NAME", "cdkafka")
     SASL_KERBEROS_PRINCIPAL = os.getenv("KAFKA_SASL_KERBEROS_PRINCIPAL", "")
 
-    # LDAP / PLAIN — set if the cluster uses username/password auth
-    SASL_USERNAME = os.getenv("KAFKA_SASL_USERNAME", "")
-    SASL_PASSWORD = os.getenv("KAFKA_SASL_PASSWORD", "")
+    # PEM certificate for SSL (non-Java apps use common.pem instead of the JKS truststore)
+    SSL_CA_LOCATION = os.getenv("KAFKA_SSL_CA_LOCATION", "common.pem")
 
     # On-prem tuning
     SESSION_TIMEOUT_MS = int(os.getenv("KAFKA_SESSION_TIMEOUT_MS", "30000"))
@@ -31,26 +35,19 @@ class KafkaConfig:
     @classmethod
     def to_dict(cls) -> dict:
         conf = {
-            "bootstrap.servers":    cls.BOOTSTRAP_SERVERS,
-            "group.id":             cls.GROUP_ID,
-            "auto.offset.reset":    cls.AUTO_OFFSET_RESET,
-            "security.protocol":    cls.SECURITY_PROTOCOL,
-            "session.timeout.ms":   cls.SESSION_TIMEOUT_MS,
+            "bootstrap.servers":     cls.BOOTSTRAP_SERVERS,
+            "group.id":              cls.GROUP_ID,
+            "auto.offset.reset":     cls.AUTO_OFFSET_RESET,
+            "security.protocol":     cls.SECURITY_PROTOCOL,
+            "sasl.mechanism":        cls.SASL_MECHANISM,
+            "sasl.kerberos.service.name": cls.SASL_KERBEROS_SERVICE_NAME,
+            "ssl.ca.location":       cls.SSL_CA_LOCATION,
+            "session.timeout.ms":    cls.SESSION_TIMEOUT_MS,
             "heartbeat.interval.ms": cls.HEARTBEAT_INTERVAL_MS,
-            "max.poll.interval.ms": cls.MAX_POLL_INTERVAL_MS,
+            "max.poll.interval.ms":  cls.MAX_POLL_INTERVAL_MS,
         }
-
-        if cls.SASL_MECHANISM == "GSSAPI":
-            conf["sasl.mechanism"] = "GSSAPI"
-            conf["sasl.kerberos.service.name"] = cls.SASL_KERBEROS_SERVICE_NAME
-            if cls.SASL_KERBEROS_PRINCIPAL:
-                conf["sasl.kerberos.principal"] = cls.SASL_KERBEROS_PRINCIPAL
-
-        elif cls.SASL_MECHANISM in ("PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"):
-            conf["sasl.mechanism"] = cls.SASL_MECHANISM
-            conf["sasl.username"] = cls.SASL_USERNAME
-            conf["sasl.password"] = cls.SASL_PASSWORD
-
+        if cls.SASL_KERBEROS_PRINCIPAL:
+            conf["sasl.kerberos.principal"] = cls.SASL_KERBEROS_PRINCIPAL
         return conf
 
 

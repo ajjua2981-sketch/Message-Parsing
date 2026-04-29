@@ -1,5 +1,6 @@
 import logging
 import os
+import subprocess
 import sys
 from consumer import KafkaMessageConsumer
 from db import OracleHandler
@@ -11,17 +12,39 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Stop polling after this many consecutive empty responses
-EMPTY_POLLS_BEFORE_EXIT = int(os.getenv("EMPTY_POLLS_BEFORE_EXIT", "3"))
-
-# Max messages to process per run (safety cap)
+APP_ENV              = os.getenv("APP_ENV", "dev")
+KEYTAB_FILE          = os.getenv("KEYTAB_FILE", f"resources/kafka/{APP_ENV}/your-service-account.keytab")
+KRB5_CONF            = os.getenv("KRB5_CONFIG", f"resources/kafka/{APP_ENV}/krb5.conf")
+KERBEROS_PRINCIPAL   = os.getenv("KAFKA_SASL_KERBEROS_PRINCIPAL", "")
 MAX_MESSAGES_PER_RUN = int(os.getenv("MAX_MESSAGES_PER_RUN", "10000"))
+POLL_TIMEOUT         = float(os.getenv("POLL_TIMEOUT_SECONDS", "5.0"))
+EMPTY_POLLS_TO_STOP  = int(os.getenv("EMPTY_POLLS_BEFORE_EXIT", "3"))
 
-# How long to wait for each message (seconds)
-POLL_TIMEOUT = float(os.getenv("POLL_TIMEOUT_SECONDS", "5.0"))
+
+def kinit():
+    """Obtain a Kerberos ticket using the keytab before connecting to Kafka."""
+    if not KERBEROS_PRINCIPAL:
+        raise RuntimeError("KAFKA_SASL_KERBEROS_PRINCIPAL is not set in .env")
+    if not os.path.isfile(KEYTAB_FILE):
+        raise FileNotFoundError(f"Keytab not found: {KEYTAB_FILE}")
+    if not os.path.isfile(KRB5_CONF):
+        raise FileNotFoundError(f"krb5.conf not found: {KRB5_CONF}")
+
+    os.environ["KRB5_CONFIG"] = KRB5_CONF
+
+    result = subprocess.run(
+        ["kinit", "-kt", KEYTAB_FILE, KERBEROS_PRINCIPAL],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"kinit failed: {result.stderr.strip()}")
+
+    logger.info("Kerberos ticket obtained for %s", KERBEROS_PRINCIPAL)
 
 
 def main():
+    kinit()
+
     kafka = KafkaMessageConsumer()
     db = OracleHandler()
 
@@ -32,15 +55,15 @@ def main():
     try:
         db.connect()
         kafka.start()
-        logger.info("Batch run started — max messages: %d", MAX_MESSAGES_PER_RUN)
+        logger.info("Batch started — max messages per run: %d", MAX_MESSAGES_PER_RUN)
 
         while processed + failed < MAX_MESSAGES_PER_RUN:
             xml_message = kafka.poll(timeout=POLL_TIMEOUT)
 
             if xml_message is None:
                 empty_polls += 1
-                if empty_polls >= EMPTY_POLLS_BEFORE_EXIT:
-                    logger.info("No more messages — ending batch run")
+                if empty_polls >= EMPTY_POLLS_TO_STOP:
+                    logger.info("No more messages in topic — ending batch")
                     break
                 continue
 
@@ -60,7 +83,7 @@ def main():
     finally:
         kafka.stop()
         db.disconnect()
-        logger.info("Batch run complete — processed: %d  failed: %d", processed, failed)
+        logger.info("Batch complete — processed: %d  failed: %d", processed, failed)
 
     if failed > 0:
         sys.exit(1)

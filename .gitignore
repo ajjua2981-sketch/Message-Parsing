@@ -2,6 +2,9 @@
 logs/
 run/
 
+# Local setup guide — never commit
+SETUP_GUIDE.md
+
 # Certificates & secrets (gitignore the files, keep the folder structure via READMEs)
 resources/kafka/**/*.keytab
 resources/kafka/**/*.pem

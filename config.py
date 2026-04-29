@@ -5,15 +5,7 @@ load_dotenv()
 
 
 class KafkaConfig:
-    BOOTSTRAP_SERVERS = os.getenv(
-        "KAFKA_BOOTSTRAP_SERVERS",
-        "ch3dr1017045.express-scripts.com:9092,"
-        "ch3dr1017046.express-scripts.com:9092,"
-        "ch3dr1017047.express-scripts.com:9092,"
-        "ch3dr1017048.express-scripts.com:9092,"
-        "ch3dr1017049.express-scripts.com:9092,"
-        "ch3dr1017050.express-scripts.com:9092",
-    )
+    BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "")
     TOPIC = os.getenv("KAFKA_TOPIC", "your-topic-name")
     GROUP_ID = os.getenv("KAFKA_GROUP_ID", "message-parsing-group")
     AUTO_OFFSET_RESET = os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest")

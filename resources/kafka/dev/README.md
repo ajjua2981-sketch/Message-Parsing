@@ -15,4 +15,4 @@ NOT needed for Python (Java only):
 Set in .env:
 
     APP_ENV=dev
-    KAFKA_SASL_KERBEROS_PRINCIPAL=<your-principal>@EXPRESS-SCRIPTS.COM
+    KAFKA_SASL_KERBEROS_PRINCIPAL=<your-principal>@YOUR-DOMAIN.COM

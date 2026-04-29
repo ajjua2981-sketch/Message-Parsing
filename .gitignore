@@ -6,6 +6,7 @@ run/
 *.pem
 *.jks
 *.keytab
+resources/kafka/**/*.keytab
 
 # Python
 __pycache__/

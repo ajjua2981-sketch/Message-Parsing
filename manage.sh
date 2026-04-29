@@ -20,8 +20,16 @@ set -o allexport
 source "$ENV_FILE"
 set +o allexport
 
-KEYTAB_FILE="${KEYTAB_FILE:-}"
+APP_ENV="${APP_ENV:-dev}"
 KERBEROS_PRINCIPAL="${KAFKA_SASL_KERBEROS_PRINCIPAL:-}"
+
+# Resolve keytab path relative to project root if not absolute
+_RAW_KEYTAB="${KEYTAB_FILE:-resources/kafka/${APP_ENV}/${APP_ENV}.keytab}"
+if [[ "$_RAW_KEYTAB" != /* ]]; then
+    KEYTAB_FILE="$APP_DIR/$_RAW_KEYTAB"
+else
+    KEYTAB_FILE="$_RAW_KEYTAB"
+fi
 
 mkdir -p "$APP_DIR/run" "$APP_DIR/logs"
 
@@ -116,6 +124,10 @@ start() {
         echo "[$APP_NAME] Already running (PID $(cat "$PID_FILE"))"
         exit 1
     fi
+
+    echo "[$APP_NAME] Environment : $APP_ENV"
+    echo "[$APP_NAME] Keytab      : $KEYTAB_FILE"
+    echo "[$APP_NAME] Principal   : $KERBEROS_PRINCIPAL"
 
     kinit_keytab
     start_renewal

@@ -10,18 +10,93 @@ LOG_FILE="$APP_DIR/logs/$APP_NAME.log"
 KRENEW_PID_FILE="$APP_DIR/run/$APP_NAME-krenew.pid"
 PYTHON="$VENV_DIR/bin/python"
 
-# Load .env to read keytab config
+# Load .env
 ENV_FILE="$APP_DIR/.env"
-if [[ -f "$ENV_FILE" ]]; then
-    set -o allexport
-    source "$ENV_FILE"
-    set +o allexport
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "[$APP_NAME] ERROR: .env file not found at $ENV_FILE"
+    exit 1
 fi
+set -o allexport
+source "$ENV_FILE"
+set +o allexport
 
 KEYTAB_FILE="${KEYTAB_FILE:-}"
 KERBEROS_PRINCIPAL="${KAFKA_SASL_KERBEROS_PRINCIPAL:-}"
 
 mkdir -p "$APP_DIR/run" "$APP_DIR/logs"
+
+# ---------------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------------
+
+validate() {
+    local errors=0
+
+    if [[ -z "$KEYTAB_FILE" ]]; then
+        echo "[$APP_NAME] ERROR: KEYTAB_FILE is not set in .env"
+        errors=$((errors + 1))
+    elif [[ ! -f "$KEYTAB_FILE" ]]; then
+        echo "[$APP_NAME] ERROR: Keytab file not found: $KEYTAB_FILE"
+        errors=$((errors + 1))
+    fi
+
+    if [[ -z "$KERBEROS_PRINCIPAL" ]]; then
+        echo "[$APP_NAME] ERROR: KAFKA_SASL_KERBEROS_PRINCIPAL is not set in .env"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -x "$PYTHON" ]]; then
+        echo "[$APP_NAME] ERROR: Virtual env not found. Run:"
+        echo "             python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+        errors=$((errors + 1))
+    fi
+
+    if [[ $errors -gt 0 ]]; then
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Kerberos
+# ---------------------------------------------------------------------------
+
+kinit_keytab() {
+    echo "[$APP_NAME] Obtaining Kerberos ticket for $KERBEROS_PRINCIPAL..."
+    kinit -kt "$KEYTAB_FILE" "$KERBEROS_PRINCIPAL"
+    echo "[$APP_NAME] Kerberos ticket obtained:"
+    klist
+}
+
+start_renewal() {
+    if command -v k5start &>/dev/null; then
+        # k5start: authenticates from keytab and keeps ticket alive (-K = renew interval in minutes)
+        nohup k5start -f "$KEYTAB_FILE" -U -K 60 -q >> "$LOG_FILE" 2>&1 &
+        echo $! > "$KRENEW_PID_FILE"
+        echo "[$APP_NAME] Ticket renewal started via k5start (PID $!, every 60 min)"
+    elif command -v krenew &>/dev/null; then
+        # krenew: renews an existing ticket without needing the keytab again
+        nohup krenew -K 60 -k >> "$LOG_FILE" 2>&1 &
+        echo $! > "$KRENEW_PID_FILE"
+        echo "[$APP_NAME] Ticket renewal started via krenew (PID $!, every 60 min)"
+    else
+        echo "[$APP_NAME] WARNING: k5start and krenew not found — ticket will expire without renewal."
+        echo "[$APP_NAME]          Install k5start: yum install kstart  OR  apt install kstart"
+    fi
+}
+
+stop_renewal() {
+    if [[ -f "$KRENEW_PID_FILE" ]]; then
+        local pid
+        pid=$(cat "$KRENEW_PID_FILE")
+        kill -TERM "$pid" 2>/dev/null || true
+        rm -f "$KRENEW_PID_FILE"
+        echo "[$APP_NAME] Ticket renewal daemon stopped"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# App lifecycle
+# ---------------------------------------------------------------------------
 
 is_running() {
     if [[ -f "$PID_FILE" ]]; then
@@ -34,65 +109,16 @@ is_running() {
     return 1
 }
 
-kinit_with_keytab() {
-    if [[ -z "$KEYTAB_FILE" || -z "$KERBEROS_PRINCIPAL" ]]; then
-        echo "[$APP_NAME] No keytab configured — assuming active kinit session"
-        return 0
-    fi
-
-    if [[ ! -f "$KEYTAB_FILE" ]]; then
-        echo "[$APP_NAME] ERROR: Keytab file not found: $KEYTAB_FILE"
-        exit 1
-    fi
-
-    echo "[$APP_NAME] Obtaining Kerberos ticket for $KERBEROS_PRINCIPAL..."
-    kinit -kt "$KEYTAB_FILE" "$KERBEROS_PRINCIPAL"
-    echo "[$APP_NAME] Kerberos ticket obtained"
-}
-
-start_krenew() {
-    # Keep the Kerberos ticket alive in the background using k5start or krenew
-    if [[ -z "$KEYTAB_FILE" || -z "$KERBEROS_PRINCIPAL" ]]; then
-        return 0
-    fi
-
-    if command -v k5start &>/dev/null; then
-        nohup k5start -f "$KEYTAB_FILE" -U -K 60 >> "$LOG_FILE" 2>&1 &
-        echo $! > "$KRENEW_PID_FILE"
-        echo "[$APP_NAME] k5start renewal daemon started (PID $!)"
-    elif command -v krenew &>/dev/null; then
-        nohup krenew -K 60 >> "$LOG_FILE" 2>&1 &
-        echo $! > "$KRENEW_PID_FILE"
-        echo "[$APP_NAME] krenew renewal daemon started (PID $!)"
-    else
-        echo "[$APP_NAME] WARNING: Neither k5start nor krenew found — ticket will NOT auto-renew."
-        echo "[$APP_NAME]          Install k5start (recommended) or set up a cron for kinit."
-    fi
-}
-
-stop_krenew() {
-    if [[ -f "$KRENEW_PID_FILE" ]]; then
-        local pid
-        pid=$(cat "$KRENEW_PID_FILE")
-        kill -TERM "$pid" 2>/dev/null || true
-        rm -f "$KRENEW_PID_FILE"
-        echo "[$APP_NAME] Kerberos renewal daemon stopped"
-    fi
-}
-
 start() {
+    validate
+
     if is_running; then
         echo "[$APP_NAME] Already running (PID $(cat "$PID_FILE"))"
         exit 1
     fi
 
-    if [[ ! -x "$PYTHON" ]]; then
-        echo "[$APP_NAME] Virtual env not found. Run: python3 -m venv venv && venv/bin/pip install -r requirements.txt"
-        exit 1
-    fi
-
-    kinit_with_keytab
-    start_krenew
+    kinit_keytab
+    start_renewal
 
     echo "[$APP_NAME] Starting..."
     cd "$APP_DIR"
@@ -102,7 +128,7 @@ start() {
 }
 
 stop() {
-    stop_krenew
+    stop_renewal
 
     if ! is_running; then
         echo "[$APP_NAME] Not running"
@@ -120,7 +146,7 @@ stop() {
         sleep 1
         waited=$((waited + 1))
         if [[ $waited -ge 15 ]]; then
-            echo "[$APP_NAME] Force killing (PID $pid)..."
+            echo "[$APP_NAME] Force killing..."
             kill -KILL "$pid"
             break
         fi
@@ -133,14 +159,14 @@ stop() {
 status() {
     if is_running; then
         echo "[$APP_NAME] Running (PID $(cat "$PID_FILE"))"
-        if command -v klist &>/dev/null; then
-            echo ""
-            klist 2>/dev/null || echo "No active Kerberos ticket"
-        fi
     else
         echo "[$APP_NAME] Not running"
         rm -f "$PID_FILE"
     fi
+
+    echo ""
+    echo "Kerberos ticket:"
+    klist 2>/dev/null || echo "  No active ticket"
 }
 
 restart() {

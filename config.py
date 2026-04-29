@@ -40,4 +40,4 @@ class AppConfig:
     # Dot-notation path to the reference ID in the parsed XML dict.
     # Example: "Envelope.Header.ReferenceID" for:
     #   <Envelope><Header><ReferenceID>ABC123</ReferenceID></Header></Envelope>
-    REFERENCE_ID_PATH = os.getenv("REFERENCE_ID_PATH", "Envelope.Header.ReferenceID")
+    REFERENCE_ID_PATH = os.getenv("REFERENCE_ID_PATH", "ns2:Envelope.ns2:body.PAReferenceId")

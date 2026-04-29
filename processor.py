@@ -28,15 +28,20 @@ def _extract_reference_id(data: dict) -> str:
 
 
 def _flatten_for_db(data: dict, json_string: str) -> dict:
-    """Map parsed message fields to Oracle column values.
+    """Map parsed XML fields to Oracle column values.
 
-    TODO: expand with real column mappings once the table schema is shared.
-    The full JSON payload is stored in PAYLOAD for now.
+    Extracts known fields from ns2:body. Full JSON payload is also stored
+    for completeness. TODO: align column names with the real table schema.
     """
+    body = data.get("ns2:Envelope", {}).get("ns2:body", {})
+
     return {
-        "REFERENCE_ID": _extract_reference_id(data),
-        "PAYLOAD": json_string,
-        "STATUS": "NEW",
+        "REFERENCE_ID":        _extract_reference_id(data),
+        "STATUS_CODE":         body.get("StatusCode"),
+        "STATUS_MESSAGE":      body.get("StatusMessage"),
+        "PA_REFERENCE_TS":     body.get("PAReferenceTimeStamp"),
+        "GUID":                body.get("Guid"),
+        "PAYLOAD":             json_string,
     }
 
 

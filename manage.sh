@@ -22,14 +22,15 @@ set +o allexport
 
 APP_ENV="${APP_ENV:-dev}"
 KERBEROS_PRINCIPAL="${KAFKA_SASL_KERBEROS_PRINCIPAL:-}"
+KAFKA_RESOURCES="$APP_DIR/resources/kafka/$APP_ENV"
 
-# Resolve keytab path relative to project root if not absolute
-_RAW_KEYTAB="${KEYTAB_FILE:-resources/kafka/${APP_ENV}/${APP_ENV}.keytab}"
-if [[ "$_RAW_KEYTAB" != /* ]]; then
-    KEYTAB_FILE="$APP_DIR/$_RAW_KEYTAB"
-else
-    KEYTAB_FILE="$_RAW_KEYTAB"
-fi
+# All three Kerberos/SSL files live under resources/kafka/<env>/
+KEYTAB_FILE="$KAFKA_RESOURCES/DKFKpocepa.keytab"
+KRB5_CONF="$KAFKA_RESOURCES/krb5.conf"
+SSL_PEM="$KAFKA_RESOURCES/common.pem"
+
+# Export KRB5_CONFIG so the OS Kerberos library and confluent-kafka both pick it up
+export KRB5_CONFIG="$KRB5_CONF"
 
 mkdir -p "$APP_DIR/run" "$APP_DIR/logs"
 
@@ -40,11 +41,18 @@ mkdir -p "$APP_DIR/run" "$APP_DIR/logs"
 validate() {
     local errors=0
 
-    if [[ -z "$KEYTAB_FILE" ]]; then
-        echo "[$APP_NAME] ERROR: KEYTAB_FILE is not set in .env"
+    if [[ ! -f "$KEYTAB_FILE" ]]; then
+        echo "[$APP_NAME] ERROR: Keytab not found: $KEYTAB_FILE"
         errors=$((errors + 1))
-    elif [[ ! -f "$KEYTAB_FILE" ]]; then
-        echo "[$APP_NAME] ERROR: Keytab file not found: $KEYTAB_FILE"
+    fi
+
+    if [[ ! -f "$KRB5_CONF" ]]; then
+        echo "[$APP_NAME] ERROR: krb5.conf not found: $KRB5_CONF"
+        errors=$((errors + 1))
+    fi
+
+    if [[ ! -f "$SSL_PEM" ]]; then
+        echo "[$APP_NAME] ERROR: common.pem not found: $SSL_PEM"
         errors=$((errors + 1))
     fi
 
@@ -127,6 +135,8 @@ start() {
 
     echo "[$APP_NAME] Environment : $APP_ENV"
     echo "[$APP_NAME] Keytab      : $KEYTAB_FILE"
+    echo "[$APP_NAME] krb5.conf   : $KRB5_CONF"
+    echo "[$APP_NAME] SSL PEM     : $SSL_PEM"
     echo "[$APP_NAME] Principal   : $KERBEROS_PRINCIPAL"
 
     kinit_keytab

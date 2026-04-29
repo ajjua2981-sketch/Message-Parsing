@@ -2,11 +2,11 @@
 logs/
 run/
 
-# Certificates & secrets
-*.pem
-*.jks
-*.keytab
+# Certificates & secrets (gitignore the files, keep the folder structure via READMEs)
 resources/kafka/**/*.keytab
+resources/kafka/**/*.pem
+resources/kafka/**/*.conf
+resources/kafka/**/*.jks
 
 # Python
 __pycache__/

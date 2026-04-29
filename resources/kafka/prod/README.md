@@ -1,11 +1,18 @@
-# PROD Kafka Keytab
+# PROD Kafka Resources
 
-Place the PROD environment keytab file here:
+Place these files here (all are gitignored):
 
-    resources/kafka/prod/prod.keytab
+| File                        | Purpose                              |
+|-----------------------------|--------------------------------------|
+| `DKFKpocepa.keytab`         | Kerberos keytab for authentication   |
+| `krb5.conf`                 | Kerberos config (KDC address etc.)   |
+| `common.pem`                | SSL CA certificate                   |
+
+NOT needed for Python (Java only):
+- `jaas.conf`
+- `devpkafka.server.truststore.jks`
 
 Set in .env:
 
     APP_ENV=prod
-    KEYTAB_FILE=resources/kafka/prod/prod.keytab
-    KAFKA_SASL_KERBEROS_PRINCIPAL=svc-account-prod@EXPRESS-SCRIPTS.COM
+    KAFKA_SASL_KERBEROS_PRINCIPAL=<your-principal>@EXPRESS-SCRIPTS.COM

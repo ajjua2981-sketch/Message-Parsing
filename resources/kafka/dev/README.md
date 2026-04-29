@@ -1,11 +1,18 @@
-# DEV Kafka Keytab
+# DEV Kafka Resources
 
-Place the DEV environment keytab file here:
+Place these files here (all are gitignored):
 
-    resources/kafka/dev/dev.keytab
+| File                        | Purpose                              |
+|-----------------------------|--------------------------------------|
+| `DKFKpocepa.keytab`         | Kerberos keytab for authentication   |
+| `krb5.conf`                 | Kerberos config (KDC address etc.)   |
+| `common.pem`                | SSL CA certificate                   |
+
+NOT needed for Python (Java only):
+- `jaas.conf`
+- `devpkafka.server.truststore.jks`
 
 Set in .env:
 
     APP_ENV=dev
-    KEYTAB_FILE=resources/kafka/dev/dev.keytab
-    KAFKA_SASL_KERBEROS_PRINCIPAL=svc-account-dev@EXPRESS-SCRIPTS.COM
+    KAFKA_SASL_KERBEROS_PRINCIPAL=<your-principal>@EXPRESS-SCRIPTS.COM

@@ -24,8 +24,9 @@ class KafkaConfig:
     SASL_KERBEROS_SERVICE_NAME = os.getenv("KAFKA_SASL_KERBEROS_SERVICE_NAME", "cdkafka")
     SASL_KERBEROS_PRINCIPAL = os.getenv("KAFKA_SASL_KERBEROS_PRINCIPAL", "")
 
-    # PEM certificate for SSL (non-Java apps use common.pem instead of the JKS truststore)
-    SSL_CA_LOCATION = os.getenv("KAFKA_SSL_CA_LOCATION", "common.pem")
+    # PEM certificate — resolves to resources/kafka/<env>/common.pem by default
+    _env = os.getenv("APP_ENV", "dev")
+    SSL_CA_LOCATION = os.getenv("KAFKA_SSL_CA_LOCATION", f"resources/kafka/{_env}/common.pem")
 
     # On-prem tuning
     SESSION_TIMEOUT_MS = int(os.getenv("KAFKA_SESSION_TIMEOUT_MS", "30000"))

@@ -5,6 +5,7 @@ run/
 # Certificates & secrets
 *.pem
 *.jks
+*.keytab
 
 # Python
 __pycache__/

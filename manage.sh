@@ -25,7 +25,7 @@ KERBEROS_PRINCIPAL="${KAFKA_SASL_KERBEROS_PRINCIPAL:-}"
 KAFKA_RESOURCES="$APP_DIR/resources/kafka/$APP_ENV"
 
 # All three Kerberos/SSL files live under resources/kafka/<env>/
-KEYTAB_FILE="$KAFKA_RESOURCES/DKFKpocepa.keytab"
+KEYTAB_FILE="$KAFKA_RESOURCES/your-service-account.keytab"
 KRB5_CONF="$KAFKA_RESOURCES/krb5.conf"
 SSL_PEM="$KAFKA_RESOURCES/common.pem"
 

@@ -4,13 +4,13 @@ Place these files here (all are gitignored):
 
 | File                        | Purpose                              |
 |-----------------------------|--------------------------------------|
-| `DKFKpocepa.keytab`         | Kerberos keytab for authentication   |
+| `your-service-account.keytab`         | Kerberos keytab for authentication   |
 | `krb5.conf`                 | Kerberos config (KDC address etc.)   |
 | `common.pem`                | SSL CA certificate                   |
 
 NOT needed for Python (Java only):
 - `jaas.conf`
-- `devpkafka.server.truststore.jks`
+- `your-kafka.server.truststore.jks`
 
 Set in .env:
 

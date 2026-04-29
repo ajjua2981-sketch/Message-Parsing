@@ -13,7 +13,7 @@ class KafkaConfig:
     # SASL_SSL: Kerberos auth over SSL (on-prem cluster requirement)
     SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", "SASL_SSL")
     SASL_MECHANISM = os.getenv("KAFKA_SASL_MECHANISM", "GSSAPI")
-    SASL_KERBEROS_SERVICE_NAME = os.getenv("KAFKA_SASL_KERBEROS_SERVICE_NAME", "cdkafka")
+    SASL_KERBEROS_SERVICE_NAME = os.getenv("KAFKA_SASL_KERBEROS_SERVICE_NAME", "your-kerberos-service-name")
     SASL_KERBEROS_PRINCIPAL = os.getenv("KAFKA_SASL_KERBEROS_PRINCIPAL", "")
 
     # PEM certificate — resolves to resources/kafka/<env>/common.pem by default

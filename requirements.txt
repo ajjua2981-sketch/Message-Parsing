@@ -1,4 +1,4 @@
-confluent-kafka==2.3.0
-oracledb==2.1.2
-xmltodict==0.13.0
+confluent-kafka==2.6.1
+oracledb==2.4.1
+xmltodict==0.14.2
 python-dotenv==1.0.1

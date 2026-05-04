@@ -24,9 +24,9 @@ class OracleHandler:
             logger.info("Oracle connection closed")
 
     def fetch_by_reference_id(self, reference_id: str) -> list[dict]:
-        """Return all rows matching the reference_id, ordered by insertion order."""
+        """Fetch all records matching the reference ID, ordered by insertion order."""
         sql = f"""
-            SELECT *
+            SELECT ROWID, {self._table}.*
             FROM {self._table}
             WHERE REFERENCE_ID = :ref_id
             ORDER BY ROWID ASC
@@ -37,46 +37,17 @@ class OracleHandler:
             rows = cur.fetchall()
         return [dict(zip(columns, row)) for row in rows]
 
-    def insert_record(self, data: dict):
-        """Insert a new record. TODO: align column names with the real table schema."""
-        sql = f"""
-            INSERT INTO {self._table}
-                (REFERENCE_ID, STATUS_CODE, STATUS_MESSAGE, PA_REFERENCE_TS, GUID, PAYLOAD)
-            VALUES
-                (:reference_id, :status_code, :status_message, :pa_reference_ts, :guid, :payload)
-        """
-        with self._conn.cursor() as cur:
-            cur.execute(sql, {
-                "reference_id":    data.get("REFERENCE_ID"),
-                "status_code":     data.get("STATUS_CODE"),
-                "status_message":  data.get("STATUS_MESSAGE"),
-                "pa_reference_ts": data.get("PA_REFERENCE_TS"),
-                "guid":            data.get("GUID"),
-                "payload":         data.get("PAYLOAD"),
-            })
-        self._conn.commit()
-        logger.info("Inserted new record for REFERENCE_ID=%s", data.get("REFERENCE_ID"))
-
-    def update_record(self, reference_id: str, rowid: str, data: dict):
-        """Update the first matching record identified by its ROWID. TODO: align column names."""
+    def update_payload(self, rowid: str, reference_id: str, payload: str):
+        """Update the PAYLOAD column of the record identified by ROWID."""
         sql = f"""
             UPDATE {self._table}
-            SET
-                STATUS_CODE     = :status_code,
-                STATUS_MESSAGE  = :status_message,
-                PA_REFERENCE_TS = :pa_reference_ts,
-                GUID            = :guid,
-                PAYLOAD         = :payload
+            SET PAYLOAD = :payload
             WHERE ROWID = :rowid
         """
         with self._conn.cursor() as cur:
             cur.execute(sql, {
-                "status_code":     data.get("STATUS_CODE"),
-                "status_message":  data.get("STATUS_MESSAGE"),
-                "pa_reference_ts": data.get("PA_REFERENCE_TS"),
-                "guid":            data.get("GUID"),
-                "payload":         data.get("PAYLOAD"),
-                "rowid":           rowid,
+                "payload": payload,
+                "rowid":   rowid,
             })
         self._conn.commit()
-        logger.info("Updated record ROWID=%s for REFERENCE_ID=%s", rowid, reference_id)
+        logger.info("Updated PAYLOAD for REFERENCE_ID=%s", reference_id)

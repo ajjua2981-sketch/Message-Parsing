@@ -7,11 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def _extract_reference_id(data: dict) -> str:
-    """Walk the fixed dot-notation path defined in REFERENCE_ID_PATH to extract the reference ID.
-
-    Each segment in the path must be an exact key in the parsed XML dict.
-    Raises KeyError with a descriptive message if any segment is missing.
-    """
+    """Walk the fixed dot-notation path defined in REFERENCE_ID_PATH to extract the reference ID."""
     path = AppConfig.REFERENCE_ID_PATH
     segments = path.split(".")
     current = data
@@ -27,76 +23,31 @@ def _extract_reference_id(data: dict) -> str:
     return str(current)
 
 
-def _flatten_for_db(data: dict, json_string: str) -> dict:
-    """Map parsed XML fields to Oracle column values.
-
-    Extracts known fields from ns2:body. Full JSON payload is also stored
-    for completeness. TODO: align column names with the real table schema.
-    """
-    body = data.get("ns2:Envelope", {}).get("ns2:body", {})
-
-    return {
-        "REFERENCE_ID":        _extract_reference_id(data),
-        "STATUS_CODE":         body.get("StatusCode"),
-        "STATUS_MESSAGE":      body.get("StatusMessage"),
-        "PA_REFERENCE_TS":     body.get("PAReferenceTimeStamp"),
-        "GUID":                body.get("Guid"),
-        "PAYLOAD":             json_string,
-    }
-
-
 def process_message(xml_string: str, db: OracleHandler):
-    """Full pipeline: XML → JSON → Oracle upsert."""
-    # 1. Parse
+    """Full pipeline: XML → JSON → fetch by reference ID → update PAYLOAD."""
+
+    # 1. Parse XML to JSON
     data, json_string = xml_to_json(xml_string)
-    logger.debug("Parsed JSON:\n%s", json_string)
 
     # 2. Extract reference ID
     reference_id = _extract_reference_id(data)
-    logger.info("Processing message with REFERENCE_ID=%s", reference_id)
+    logger.info("Processing REFERENCE_ID=%s", reference_id)
 
-    # 3. Build the row dict for DB operations
-    row_data = _flatten_for_db(data, json_string)
-
-    # 4. Fetch existing records
+    # 3. Fetch existing records by reference ID
     existing = db.fetch_by_reference_id(reference_id)
     count = len(existing)
-    logger.info("Found %d existing record(s) for REFERENCE_ID=%s", count, reference_id)
 
     if count == 0:
-        # No existing record — insert fresh
-        db.insert_record(row_data)
+        logger.warning("No record found for REFERENCE_ID=%s — skipping", reference_id)
+        return
 
-    else:
-        # One or more records exist — update the first one (lowest ROWID / insertion order)
-        first_row = existing[0]
-        rowid = first_row.get("ROWID") or first_row.get("rowid")
+    # 4. Update PAYLOAD of the first record
+    first_row = existing[0]
+    rowid = first_row.get("ROWID") or first_row.get("rowid")
+    db.update_payload(rowid, reference_id, json_string)
 
-        if rowid is None:
-            # Fallback: re-query to get the ROWID explicitly
-            rowid = _fetch_first_rowid(db, reference_id)
-
-        db.update_record(reference_id, rowid, row_data)
-
-        if count > 1:
-            logger.warning(
-                "Multiple records (%d) found for REFERENCE_ID=%s — updated the first one",
-                count, reference_id,
-            )
-
-
-def _fetch_first_rowid(db: OracleHandler, reference_id: str) -> str:
-    """Fetch the ROWID of the first inserted record when it wasn't in SELECT *."""
-    from config import OracleConfig
-    sql = f"""
-        SELECT ROWID FROM {OracleConfig.TABLE}
-        WHERE REFERENCE_ID = :ref_id
-        ORDER BY ROWID ASC
-        FETCH FIRST 1 ROWS ONLY
-    """
-    with db._conn.cursor() as cur:
-        cur.execute(sql, ref_id=reference_id)
-        row = cur.fetchone()
-    if not row:
-        raise RuntimeError(f"Could not find ROWID for REFERENCE_ID={reference_id}")
-    return row[0]
+    if count > 1:
+        logger.warning(
+            "Multiple records (%d) found for REFERENCE_ID=%s — updated the first one",
+            count, reference_id,
+        )

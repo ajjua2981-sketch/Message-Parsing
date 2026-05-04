@@ -5,6 +5,11 @@ run/
 # Local setup guide — never commit
 SETUP_GUIDE.md
 
+# Env files with real values — never commit
+envs/.env.dev
+envs/.env.qa
+envs/.env.prod
+
 # Certificates & secrets (gitignore the files, keep the folder structure via READMEs)
 resources/kafka/**/*.keytab
 resources/kafka/**/*.pem

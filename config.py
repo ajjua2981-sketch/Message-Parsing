@@ -1,7 +1,11 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load env file from envs/ folder based on APP_ENV
+# Defaults to dev if not set
+_app_env = os.getenv("APP_ENV", "dev")
+_env_file = os.path.join(os.path.dirname(__file__), "envs", f".env.{_app_env}")
+load_dotenv(_env_file)
 
 
 class KafkaConfig:

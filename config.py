@@ -36,15 +36,22 @@ class KafkaConfig:
             "group.id":              cls.GROUP_ID,
             "auto.offset.reset":     cls.AUTO_OFFSET_RESET,
             "security.protocol":     cls.SECURITY_PROTOCOL,
-            "sasl.mechanism":        cls.SASL_MECHANISM,
-            "sasl.kerberos.service.name": cls.SASL_KERBEROS_SERVICE_NAME,
-            "ssl.ca.location":       cls.SSL_CA_LOCATION,
             "session.timeout.ms":    cls.SESSION_TIMEOUT_MS,
             "heartbeat.interval.ms": cls.HEARTBEAT_INTERVAL_MS,
             "max.poll.interval.ms":  cls.MAX_POLL_INTERVAL_MS,
         }
-        if cls.SASL_KERBEROS_PRINCIPAL:
-            conf["sasl.kerberos.principal"] = cls.SASL_KERBEROS_PRINCIPAL
+        # Only add SASL settings if mechanism is set
+        if cls.SASL_MECHANISM:
+            conf["sasl.mechanism"] = cls.SASL_MECHANISM
+            if cls.SASL_KERBEROS_SERVICE_NAME:
+                conf["sasl.kerberos.service.name"] = cls.SASL_KERBEROS_SERVICE_NAME
+            if cls.SASL_KERBEROS_PRINCIPAL:
+                conf["sasl.kerberos.principal"] = cls.SASL_KERBEROS_PRINCIPAL
+
+        # Only add SSL settings if protocol requires it
+        if "SSL" in cls.SECURITY_PROTOCOL:
+            conf["ssl.ca.location"] = cls.SSL_CA_LOCATION
+
         return conf
 
 

@@ -43,7 +43,7 @@ def kinit():
 
 
 def main():
-    kinit()
+    # kinit()    ← uncomment when running on server with Kerberos
 
     kafka = KafkaMessageConsumer()
     db = OracleHandler()

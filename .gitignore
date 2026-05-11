@@ -9,6 +9,7 @@ SETUP_GUIDE.md
 envs/.env.dev
 envs/.env.qa
 envs/.env.prod
+envs/common.pem
 
 # Certificates & secrets (gitignore the files, keep the folder structure via READMEs)
 resources/kafka/**/*.keytab

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 APP_ENV              = os.getenv("APP_ENV", "dev")
 KEYTAB_FILE          = os.getenv("KEYTAB_FILE", f"resources/kafka/{APP_ENV}/your-service-account.keytab")
-KRB5_CONF            = os.getenv("KRB5_CONFIG", "")  # optional — Windows uses system Kerberos config
+KRB5_CONF            = os.getenv("KRB5_CONFIG", f"resources/kafka/{APP_ENV}/krb5.conf")
 KERBEROS_PRINCIPAL   = os.getenv("KAFKA_SASL_KERBEROS_PRINCIPAL", "")
 MAX_MESSAGES_PER_RUN = int(os.getenv("MAX_MESSAGES_PER_RUN", "10000"))
 POLL_TIMEOUT         = float(os.getenv("POLL_TIMEOUT_SECONDS", "5.0"))
@@ -27,12 +27,10 @@ def kinit():
         raise RuntimeError("KAFKA_SASL_KERBEROS_PRINCIPAL is not set in .env")
     if not os.path.isfile(KEYTAB_FILE):
         raise FileNotFoundError(f"Keytab not found: {KEYTAB_FILE}")
-    # Only set KRB5_CONFIG if a krb5.conf file is explicitly provided
-    if KRB5_CONF and os.path.isfile(KRB5_CONF):
-        os.environ["KRB5_CONFIG"] = KRB5_CONF
-        logger.info("Using krb5.conf: %s", KRB5_CONF)
-    else:
-        logger.info("No krb5.conf provided — using system Kerberos config")
+    if not os.path.isfile(KRB5_CONF):
+        raise FileNotFoundError(f"krb5.conf not found: {KRB5_CONF}")
+    os.environ["KRB5_CONFIG"] = KRB5_CONF
+    logger.info("Using krb5.conf: %s", KRB5_CONF)
 
     result = subprocess.run(
         ["kinit", "-kt", KEYTAB_FILE, KERBEROS_PRINCIPAL],

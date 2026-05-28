@@ -35,6 +35,7 @@ class KafkaConfig:
             "bootstrap.servers":     cls.BOOTSTRAP_SERVERS,
             "group.id":              cls.GROUP_ID,
             "auto.offset.reset":     cls.AUTO_OFFSET_RESET,
+            "enable.auto.commit":    False,
             "security.protocol":     cls.SECURITY_PROTOCOL,
             "session.timeout.ms":    cls.SESSION_TIMEOUT_MS,
             "heartbeat.interval.ms": cls.HEARTBEAT_INTERVAL_MS,
@@ -60,6 +61,7 @@ class OracleConfig:
     PASSWORD = os.getenv("ORACLE_PASSWORD", "your_db_password")
     DSN = os.getenv("ORACLE_DSN", "localhost:1521/ORCL")
     TABLE = os.getenv("ORACLE_TABLE", "YOUR_TABLE_NAME")
+    PAYLOAD_COLUMN = os.getenv("ORACLE_PAYLOAD_COLUMN", "DAMSRESPONSETEXT")
 
 
 class AppConfig:

@@ -9,11 +9,9 @@ class KafkaMessageConsumer:
     def __init__(self):
         self._consumer = Consumer(KafkaConfig.to_dict())
         self._topic = KafkaConfig.TOPIC
-        self._running = False
 
     def start(self):
         self._consumer.subscribe([self._topic])
-        self._running = True
         logger.info("Subscribed to Kafka topic: %s", self._topic)
 
     def poll(self, timeout: float = 1.0):
@@ -39,6 +37,5 @@ class KafkaMessageConsumer:
         self._consumer.commit()
 
     def stop(self):
-        self._running = False
         self._consumer.close()
         logger.info("Kafka consumer closed")

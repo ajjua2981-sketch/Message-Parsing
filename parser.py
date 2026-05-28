@@ -18,7 +18,7 @@ def xml_to_dict(xml_string: str) -> dict:
 
 def dict_to_json(data: dict) -> str:
     """Serialize a dict to a JSON string."""
-    return json.dumps(data, indent=2)
+    return json.dumps(data)
 
 
 def xml_to_json(xml_string: str) -> tuple[dict, str]:

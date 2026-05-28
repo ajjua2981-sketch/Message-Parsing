@@ -4,7 +4,7 @@ import subprocess
 import sys
 from consumer import KafkaMessageConsumer
 from db import OracleHandler
-from processor import process_message
+from processor import process_message, PermanentMessageError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,8 +23,6 @@ EMPTY_POLLS_TO_STOP  = int(os.getenv("EMPTY_POLLS_BEFORE_EXIT", "3"))
 
 def kinit():
     """Obtain a Kerberos ticket using the keytab before connecting to Kafka."""
-    if not KERBEROS_PRINCIPAL:
-        raise RuntimeError("KAFKA_SASL_KERBEROS_PRINCIPAL is not set in .env")
     if not os.path.isfile(KEYTAB_FILE):
         raise FileNotFoundError(f"Keytab not found: {KEYTAB_FILE}")
     if not os.path.isfile(KRB5_CONF):
@@ -43,7 +41,10 @@ def kinit():
 
 
 def main():
-    # kinit()    ← uncomment when running on server with Kerberos
+    if KERBEROS_PRINCIPAL:
+        kinit()
+    else:
+        logger.info("KAFKA_SASL_KERBEROS_PRINCIPAL not set — skipping kinit (non-Kerberos mode)")
 
     kafka = KafkaMessageConsumer()
     db = OracleHandler()
@@ -73,12 +74,18 @@ def main():
                 process_message(xml_message, db)
                 kafka.commit()
                 processed += 1
-            except KeyError as e:
-                logger.error("Missing field in message: %s", e)
+            except PermanentMessageError as e:
+                # Malformed XML or missing reference ID path — retrying will not help.
+                # Commit the offset to advance past this poison pill.
+                logger.warning("Skipping unprocessable message (permanent failure): %s", e)
+                kafka.commit()
                 failed += 1
             except Exception as e:
-                logger.exception("Unexpected error processing message: %s", e)
+                # Likely a transient error (e.g. DB connection lost).
+                # Do NOT commit — offset stays at this message so it is retried on next run.
+                logger.exception("Aborting batch due to unexpected error: %s", e)
                 failed += 1
+                break
 
     finally:
         kafka.stop()
